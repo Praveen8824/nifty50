@@ -50,8 +50,6 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/
 
 # Logs
 *.log
