@@ -3,7 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
 build/
 develop-eggs/
 dist/
@@ -19,7 +18,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
+.streamlit/
 # Virtual Environment
 venv/
 env/
