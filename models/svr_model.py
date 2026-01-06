@@ -12,8 +12,9 @@ warnings.filterwarnings('ignore')
 class SVRModel:
     """Support Vector Regressor for stock price prediction"""
     
-    def __init__(self, kernel='rbf', C=10.0, epsilon=0.05, gamma='scale'):
-        self.model = SVR(kernel=kernel, C=C, epsilon=epsilon, gamma=gamma)
+    def __init__(self, kernel='rbf', C=100.0, epsilon=0.01, gamma='scale'):
+        # Increased C for better fit, reduced epsilon for tighter margin
+        self.model = SVR(kernel=kernel, C=C, epsilon=epsilon, gamma=gamma, max_iter=1000)
         self.x_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
         self.is_trained = False

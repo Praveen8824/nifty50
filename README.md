@@ -141,8 +141,20 @@ This application is designed to run on Streamlit Cloud for free:
 1. Push your code to GitHub
 2. Go to https://share.streamlit.io/
 3. Connect your repository
-4. Set environment variables in Streamlit Cloud settings
+4. Set environment variables in Streamlit Cloud settings:
+   - `NEWS_DATA_API_KEY` (optional, already configured)
 5. Deploy!
+
+### ✅ Live Data on Streamlit Cloud
+
+**YES, it works with live data!** Here's what you need to know:
+
+- ✅ **Live Price Fetching**: Works perfectly - Yahoo Finance API calls function on Streamlit Cloud
+- ✅ **Real-time Predictions**: Models train and predict in real-time when you click "Fetch Data & Train Models"
+- ✅ **News API**: newsdata.io API works on Streamlit Cloud
+- ⚠️ **Manual Refresh**: Streamlit Cloud free tier doesn't support automatic page refresh. Click "🔄 Refresh Live Price" button to get latest prices.
+
+**For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)**
 
 ## ⚠️ Important Notes
 

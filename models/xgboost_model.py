@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 class XGBoostModel:
     """XGBoost Regressor for stock price prediction"""
     
-    def __init__(self, n_estimators=200, max_depth=6, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, random_state=42):
+    def __init__(self, n_estimators=300, max_depth=6, learning_rate=0.03, subsample=0.8, colsample_bytree=0.8, random_state=42):
         self.model = xgb.XGBRegressor(
             n_estimators=n_estimators,
             max_depth=max_depth,
@@ -21,12 +21,13 @@ class XGBoostModel:
             colsample_bytree=colsample_bytree,
             random_state=random_state,
             n_jobs=-1,
-            min_child_weight=5,
-            gamma=0.2,
-            reg_alpha=0.5,
-            reg_lambda=2.0,
+            min_child_weight=10,  # Increased to reduce overfitting
+            gamma=0.3,  # Increased minimum loss reduction
+            reg_alpha=1.0,  # Increased L1 regularization
+            reg_lambda=3.0,  # Increased L2 regularization
             objective='reg:squarederror',
-            eval_metric='rmse'
+            eval_metric='rmse',
+            early_stopping_rounds=20  # Early stopping to prevent overfitting
         )
         self.scaler = StandardScaler()
         self.is_trained = False

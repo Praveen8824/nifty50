@@ -14,8 +14,12 @@ statsmodels==0.14.1
 
 scikit-learn==1.4.2
 xgboost==2.0.3
+lightgbm>=4.0.0
+prophet>=1.1.0
+
+# TensorFlow is optional - install manually if needed for LSTM
+# tensorflow>=2.15.0
 
 vaderSentiment==3.3.2
-newsapi-python==0.2.7
 
 pytz==2024.1

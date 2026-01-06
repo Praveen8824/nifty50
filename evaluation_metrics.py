@@ -108,21 +108,21 @@ class EvaluationMetrics:
     def calculate_direction_prediction(current_price, predicted_price):
         """
         Calculate direction prediction based on current vs predicted price
-        Returns: Bullish, Bearish, or Neutral prediction
+        Returns: Bullish, Bearish, or Hold prediction
         """
         if current_price is None or predicted_price is None:
-            return 'neutral'
+            return 'Hold'
         
         # Calculate percentage change
         price_change_pct = ((predicted_price - current_price) / current_price) * 100
         
         # Determine direction based on percentage change
-        if price_change_pct > 0.1:  # More than 0.1% increase = bullish
-            return 'bullish'
-        elif price_change_pct < -0.1:  # More than 0.1% decrease = bearish
-            return 'bearish'
+        if price_change_pct > 1.0:  # More than 1% increase = bullish
+            return 'Bullish'
+        elif price_change_pct < -1.0:  # More than 1% decrease = bearish
+            return 'Bearish'
         else:
-            return 'neutral'  # Between -0.1% and 0.1% = neutral
+            return 'Hold'  # Between -1% and 1% = hold
     
     @staticmethod
     def get_confusion_matrix(y_true, y_pred):

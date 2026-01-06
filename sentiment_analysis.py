@@ -1,29 +1,29 @@
 """
-Sentiment Analysis Module for Stock Market News
+Sentiment Analysis Module for Stock Market News using newsdata.io
 """
 import requests
 import os
 from datetime import datetime, timedelta
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import pandas as pd
-from config import NEWS_API_KEY
+from config import NEWS_DATA_API_KEY
 
 
 class SentimentAnalyzer:
-    """Class for analyzing sentiment from news articles"""
+    """Class for analyzing sentiment from news articles using newsdata.io"""
     
     def __init__(self):
         self.analyzer = SentimentIntensityAnalyzer()
-        self.api_key = NEWS_API_KEY
+        self.api_key = NEWS_DATA_API_KEY
     
-    def get_news(self, query, language='en', sort_by='relevancy', page_size=20):
+    def get_news(self, query, language='en', category=None, page_size=20):
         """
-        Fetch news articles from News API
+        Fetch news articles from newsdata.io API
         
         Args:
             query: Search query
             language: Language code (default: 'en')
-            sort_by: Sort order ('relevancy', 'popularity', 'publishedAt')
+            category: News category (optional)
             page_size: Number of articles to fetch
         
         Returns:
@@ -33,23 +33,39 @@ class SentimentAnalyzer:
             return []
         
         try:
-            url = 'https://newsapi.org/v2/everything'
+            url = 'https://newsdata.io/api/1/latest'
             params = {
+                'apikey': self.api_key,
                 'q': query,
                 'language': language,
-                'sortBy': sort_by,
-                'pageSize': page_size,
-                'apiKey': self.api_key,
-                'from': (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+                'size': min(page_size, 10)  # newsdata.io free tier limit
             }
+            
+            if category:
+                params['category'] = category
             
             response = requests.get(url, params=params, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
-                return data.get('articles', [])
+                if data.get('status') == 'success':
+                    articles = data.get('results', [])
+                    # Convert to format similar to NewsAPI
+                    formatted_articles = []
+                    for article in articles:
+                        formatted_articles.append({
+                            'title': article.get('title', ''),
+                            'description': article.get('description', ''),
+                            'url': article.get('link', ''),
+                            'publishedAt': article.get('pubDate', ''),
+                            'content': article.get('content', '')
+                        })
+                    return formatted_articles
+                else:
+                    print(f"NewsData API Error: {data.get('message', 'Unknown error')}")
+                    return []
             else:
-                print(f"News API Error: {response.status_code}")
+                print(f"NewsData API HTTP Error: {response.status_code}")
                 return []
                 
         except Exception as e:

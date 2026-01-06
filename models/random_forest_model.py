@@ -12,7 +12,8 @@ import os
 class RandomForestModel:
     """Random Forest Regressor for stock price prediction"""
     
-    def __init__(self, n_estimators=200, max_depth=12, min_samples_split=5, min_samples_leaf=2, random_state=42):
+    def __init__(self, n_estimators=200, max_depth=8, min_samples_split=15, min_samples_leaf=8, random_state=42):
+        # Reduced complexity to prevent overfitting and improve R2
         self.model = RandomForestRegressor(
             n_estimators=n_estimators,
             max_depth=max_depth,
@@ -22,7 +23,9 @@ class RandomForestModel:
             n_jobs=-1,
             max_features='sqrt',
             bootstrap=True,
-            oob_score=True
+            oob_score=True,
+            max_samples=0.85,  # Use 85% of samples for each tree
+            warm_start=False  # Don't reuse previous fit
         )
         self.scaler = StandardScaler()
         self.is_trained = False

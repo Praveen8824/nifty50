@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Keys
-NEWS_API_KEY = os.getenv('NEWS_API_KEY', '')
+NEWS_API_KEY = os.getenv('NEWS_API_KEY', 'pub_95be0e8e27524c7394c6030e95a33381')
+NEWS_DATA_API_KEY = os.getenv('NEWS_DATA_API_KEY', 'pub_95be0e8e27524c7394c6030e95a33381')
 
 # Nifty 50 Stock Symbols
 NIFTY_50_STOCKS = [

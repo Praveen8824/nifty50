@@ -1,5 +1,5 @@
 """
-Model Training and Ensemble Module
+Model Training and Ensemble Module with Enhanced Training
 """
 import pandas as pd
 import numpy as np
@@ -8,7 +8,11 @@ from models.arima_model import ARIMAModel
 from models.xgboost_model import XGBoostModel
 from models.svr_model import SVRModel
 from models.lstm_model import LSTMModel
+from models.lightgbm_model import LightGBMModel
+from models.prophet_model import ProphetModel
+from models.gradient_boosting_model import GradientBoostingModel
 from technical_indicators import TechnicalIndicators
+from sklearn.model_selection import train_test_split
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -21,13 +25,16 @@ class ModelTrainer:
         self.arima_model = ARIMAModel()
         self.xgb_model = XGBoostModel()
         self.svr_model = SVRModel()
-        self.lstm_model = LSTMModel()
+        self.lstm_model = LSTMModel(lookback=60, units=128, dropout=0.3, use_features=True)
+        self.lightgbm_model = LightGBMModel(n_estimators=200, learning_rate=0.05, max_depth=7)
+        self.prophet_model = ProphetModel()
+        self.gb_model = GradientBoostingModel(n_estimators=200, learning_rate=0.05, max_depth=5)
         self.feature_columns = None
         self.is_trained = False
         self.training_data_points = 0  # Track number of data points used for training
     
     def prepare_data(self, df):
-        """Prepare data with technical indicators"""
+        """Prepare data with technical indicators and improved preprocessing"""
         # Add technical indicators
         df_with_indicators = TechnicalIndicators.add_indicators(df)
         
@@ -35,6 +42,15 @@ class ModelTrainer:
         feature_cols = TechnicalIndicators.get_feature_columns()
         # Filter to only columns that exist in dataframe
         self.feature_columns = [col for col in feature_cols if col in df_with_indicators.columns]
+        
+        # Remove infinite values and replace with NaN
+        df_with_indicators = df_with_indicators.replace([np.inf, -np.inf], np.nan)
+        
+        # Fill remaining NaN values with forward fill then backward fill
+        df_with_indicators = df_with_indicators.fillna(method='ffill').fillna(method='bfill')
+        
+        # Drop rows that still have NaN (should be minimal)
+        df_with_indicators = df_with_indicators.dropna()
         
         return df_with_indicators
     
@@ -81,9 +97,29 @@ class ModelTrainer:
                 df_prepared, self.feature_columns
             )
             if X_lstm is not None and len(X_lstm) > 10:
-                self.lstm_model.train(X_lstm, y_lstm, epochs=80, batch_size=16, verbose=0)
+                # Enhanced training with more epochs and better parameters
+                self.lstm_model.train(X_lstm, y_lstm, epochs=150, batch_size=32, verbose=0, validation_split=0.2)
         else:
             print("LSTM not available (TensorFlow not installed)")
+        
+        print("Training LightGBM...")
+        if hasattr(self.lightgbm_model, 'is_available') and self.lightgbm_model.is_available:
+            X_lgb, y_lgb = self.lightgbm_model.prepare_data(
+                df_prepared, self.feature_columns
+            )
+            if X_lgb is not None and len(X_lgb) > 10:
+                self.lightgbm_model.train(X_lgb, y_lgb)
+        
+        print("Training Prophet...")
+        if hasattr(self.prophet_model, 'is_available') and self.prophet_model.is_available:
+            prophet_df, y_prophet = self.prophet_model.prepare_data(df_prepared)
+            if prophet_df is not None and len(prophet_df) > 30:
+                self.prophet_model.train(prophet_df, y_prophet)
+        
+        print("Training Gradient Boosting...")
+        X_gb, y_gb = self.gb_model.prepare_data(df_prepared, self.feature_columns)
+        if X_gb is not None and len(X_gb) > 10:
+            self.gb_model.train(X_gb, y_gb)
         
         self.is_trained = True
         print("All models trained successfully!")
@@ -154,6 +190,37 @@ class ModelTrainer:
         except:
             pass
         
+        # LightGBM
+        try:
+            if hasattr(self.lightgbm_model, 'is_available') and self.lightgbm_model.is_available:
+                X_lgb, _ = self.lightgbm_model.prepare_data(df_prepared, self.feature_columns)
+                if X_lgb is not None and self.lightgbm_model.is_trained:
+                    pred_lgb = self.lightgbm_model.predict(X_lgb)
+                    if pred_lgb is not None:
+                        predictions['LightGBM'] = pred_lgb
+        except:
+            pass
+        
+        # Prophet
+        try:
+            if hasattr(self.prophet_model, 'is_available') and self.prophet_model.is_available:
+                if self.prophet_model.is_trained:
+                    pred_prophet = self.prophet_model.predict(df_prepared)
+                    if pred_prophet is not None:
+                        predictions['Prophet'] = pred_prophet
+        except:
+            pass
+        
+        # Gradient Boosting
+        try:
+            X_gb, _ = self.gb_model.prepare_data(df_prepared, self.feature_columns)
+            if X_gb is not None and self.gb_model.is_trained:
+                pred_gb = self.gb_model.predict(X_gb)
+                if pred_gb is not None:
+                    predictions['Gradient Boosting'] = pred_gb
+        except:
+            pass
+        
         return predictions
     
     def ensemble_predict(self, predictions_dict, metrics_dict=None):
@@ -184,9 +251,25 @@ class ModelTrainer:
             for model_name in model_names:
                 if model_name in metrics_dict:
                     r2 = metrics_dict[model_name].get('R2_Score', 0.0)
-                    # Convert R2 to weight (handle negative R2 by setting to small positive)
-                    weight = max(0.01, r2 + 1.0)  # Shift to make all positive
-                    weights.append(weight)
+                    # Better handling of negative R2 scores
+                    # Use exponential transformation to emphasize positive R2
+                    if r2 > 0:
+                        weight = r2 ** 2  # Square to emphasize good models
+                    elif r2 > -1:
+                        weight = 0.1 * (1 + r2)  # Scale negative R2 to small positive
+                    else:
+                        weight = 0.01  # Very small weight for very negative R2
+                    
+                    # Also consider other metrics
+                    rmse = metrics_dict[model_name].get('RMSE', float('inf'))
+                    mae = metrics_dict[model_name].get('MAE', float('inf'))
+                    
+                    # Penalize high error models
+                    if rmse != float('inf') and mae != float('inf'):
+                        error_penalty = 1.0 / (1.0 + rmse + mae)
+                        weight = weight * error_penalty
+                    
+                    weights.append(max(0.01, weight))
                 else:
                     weights.append(0.01)  # Small weight for models without metrics
             

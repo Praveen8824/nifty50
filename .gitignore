@@ -18,7 +18,9 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.streamlit/
+# Keep .streamlit/config.toml but ignore secrets
+.streamlit/secrets.toml
+.streamlit/credentials.toml
 # Virtual Environment
 venv/
 env/
