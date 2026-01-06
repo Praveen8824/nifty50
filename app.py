@@ -120,7 +120,7 @@ def get_stock_name(symbol):
 
 
 def create_price_chart(df, predictions_dict, live_price_data=None):
-    """Create interactive price chart with predictions centered"""
+    """Create interactive price chart with predictions centered and rich hover"""
     fig = make_subplots(
         rows=2, cols=1,
         shared_xaxes=True,
@@ -136,7 +136,8 @@ def create_price_chart(df, predictions_dict, live_price_data=None):
             y=df['close'],
             mode='lines',
             name='Actual Price',
-            line=dict(color='blue', width=2.5)
+            line=dict(color='blue', width=2.5),
+            hovertemplate="Date: %{x|%b %d, %Y %H:%M}<br>Price: ₹%{y:.2f}<extra>Actual</extra>"
         ),
         row=1, col=1
     )
@@ -150,7 +151,8 @@ def create_price_chart(df, predictions_dict, live_price_data=None):
                 mode='markers',
                 name='Live Price',
                 marker=dict(color='red', size=12, symbol='star'),
-                showlegend=True
+                showlegend=True,
+                hovertemplate="Live @ %{x|%b %d, %Y %H:%M}<br>Price: ₹%{y:.2f}<extra></extra>"
             ),
             row=1, col=1
         )
@@ -180,7 +182,8 @@ def create_price_chart(df, predictions_dict, live_price_data=None):
                         mode='lines',
                         name=f'{model_name} Prediction',
                         line=dict(color=colors[color_idx % len(colors)], width=2, dash='dash'),
-                        opacity=0.8
+                        opacity=0.8,
+                        hovertemplate="Date: %{x|%b %d, %Y %H:%M}<br>Pred: ₹%{y:.2f}<extra>" + model_name + "</extra>"
                     ),
                     row=1, col=1
                 )
@@ -193,7 +196,8 @@ def create_price_chart(df, predictions_dict, live_price_data=None):
             y=df['volume'],
             name='Volume',
             marker_color='lightblue',
-            opacity=0.6
+            opacity=0.6,
+            hovertemplate="Date: %{x|%b %d, %Y %H:%M}<br>Volume: %{y}<extra>Volume</extra>"
         ),
         row=2, col=1
     )
@@ -203,19 +207,19 @@ def create_price_chart(df, predictions_dict, live_price_data=None):
         height=700,
         title_text="Stock Price Prediction Analysis",
         showlegend=True,
-        hovermode='x unified',
         legend=dict(
             orientation="h",
             yanchor="bottom",
             y=1.02,
             xanchor="right",
             x=1
-        )
+        ),
+        hoverlabel=dict(bgcolor="white")
     )
     
-    fig.update_xaxes(title_text="Date", row=2, col=1)
-    fig.update_yaxes(title_text="Price (₹)", row=1, col=1)
-    fig.update_yaxes(title_text="Volume", row=2, col=1)
+    fig.update_xaxes(title_text="Date", row=2, col=1, showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dash")
+    fig.update_yaxes(title_text="Price (₹)", row=1, col=1, showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dash")
+    fig.update_yaxes(title_text="Volume", row=2, col=1, showspikes=True, spikemode="across", spikesnap="cursor", spikedash="dash")
     
     # Center the y-axis range around the data
     if len(df) > 0:
@@ -381,30 +385,45 @@ def main():
         except:
             pass
         
-        # Display current stock info with live price
+        # Display current stock info with live price (match Google-style card)
         col1, col2, col3, col4, col5 = st.columns(5)
+        latest_price = df['close'].iloc[-1]
+        live_price_val = live_price_data.get('price') if live_price_data else None
+        live_open = live_price_data.get('open') if live_price_data else df['open'].iloc[-1]
+        live_high = live_price_data.get('high') if live_price_data else df['high'].iloc[-1]
+        live_low = live_price_data.get('low') if live_price_data else df['low'].iloc[-1]
+        live_change_pct = live_price_data.get('changePercent', 0) if live_price_data else None
+        live_change = live_price_data.get('change', 0) if live_price_data else (df['close'].iloc[-1] - df['close'].iloc[-2] if len(df) > 1 else 0)
+        live_vol = live_price_data.get('volume') if live_price_data else df['volume'].iloc[-1]
+
         with col1:
             st.metric("Stock", selected_stock_name)
         with col2:
             st.metric("Time Frame", selected_time_frame)
         with col3:
-            latest_price = df['close'].iloc[-1]
-            if live_price_data and live_price_data.get('price'):
-                st.metric("Live Price", f"₹{live_price_data['price']:.2f}", 
-                         delta=f"{live_price_data.get('changePercent', 0):.2f}%")
+            if live_price_val:
+                st.metric("Live Price", f"₹{live_price_val:.2f}",
+                          delta=f"{live_change_pct:.2f}%" if live_change_pct is not None else None)
             else:
                 st.metric("Latest Price", f"₹{latest_price:.2f}")
         with col4:
-            price_change = df['close'].iloc[-1] - df['close'].iloc[-2] if len(df) > 1 else 0
-            st.metric("Change", f"₹{price_change:.2f}")
+            st.metric("Open (Today)", f"₹{live_open:.2f}")
         with col5:
             if st.session_state.last_update_time:
                 st.caption(f"Last update: {st.session_state.last_update_time.strftime('%H:%M:%S')}")
+
+        colm1, colm2, colm3 = st.columns(3)
+        with colm1:
+            st.metric("Day High", f"₹{live_high:.2f}")
+        with colm2:
+            st.metric("Day Low", f"₹{live_low:.2f}")
+        with colm3:
+            st.metric("Volume", f"{live_vol:,.0f}")
         
         # Refresh button for live price with auto-refresh option
         refresh_col1, refresh_col2 = st.columns([3, 1])
         with refresh_col1:
-            if st.button("🔄 Refresh Live Price", use_container_width=True):
+            if st.button("🔄 Refresh Live Price", width='stretch'):
                 try:
                     live_price_data = st.session_state.data_fetcher.get_latest_price(selected_stock)
                     if live_price_data:
@@ -413,21 +432,19 @@ def main():
                         st.rerun()
                 except:
                     st.error("Failed to fetch live price")
-        
+
         with refresh_col2:
-            # Auto-refresh toggle (for Streamlit Cloud - manual refresh)
-            auto_refresh = st.checkbox("Auto-refresh", value=False, help="Note: On Streamlit Cloud, you need to manually refresh. This is a limitation of the free tier.")
+            auto_refresh = st.checkbox("Auto-refresh", value=False,
+                                       help="On Streamlit Cloud free tier, manual refresh is required.")
             if auto_refresh:
-                # Note: Streamlit Cloud free tier doesn't support true auto-refresh
-                # This is just a placeholder - users need to manually refresh
-                st.caption("Click refresh button")
+                st.caption("Click refresh periodically for latest price")
         
         st.divider()
         
         # Price prediction chart with live price
         st.subheader("📊 Price Prediction Chart")
         fig = create_price_chart(df, filtered_predictions, live_price_data)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Data Analysis Information
         if st.session_state.model_trainer.training_data_points > 0:
@@ -471,7 +488,7 @@ def main():
         # Get prices (works for both single and ensemble)
         last_close_price = df['close'].iloc[-1]  # Last closing price
         current_price = live_price_data['price'] if live_price_data and live_price_data.get('price') else last_close_price
-        open_price = df['open'].iloc[-1] if len(df) > 0 else last_close_price
+        open_price = live_price_data['open'] if live_price_data and live_price_data.get('open') else (df['open'].iloc[-1] if len(df) > 0 else last_close_price)
         price_change_pct = ((predicted_price - current_price) / current_price) * 100
         
         # Calculate confidence based on model agreement
@@ -553,9 +570,29 @@ def main():
         st.info(f"📊 **Recommendation:** Based on {signal} signal with {confidence*100:.1f}% confidence. "
                 f"Consider setting stop loss at ₹{stop_loss_rec['stop_loss']:.2f} and "
                 f"take profit target at ₹{stop_loss_rec['take_profit']:.2f}.")
-        
+
+        # Visual trading plan chart
+        plan_fig = go.Figure()
+        plan_fig.add_trace(go.Scatter(
+            x=["Stop Loss", "Entry", "Target"],
+            y=[stop_loss_rec['stop_loss'], current_price, stop_loss_rec['take_profit']],
+            mode="markers+lines",
+            marker=dict(size=12, color=["red", "blue", "green"]),
+            line=dict(color="gray", dash="dot"),
+            hovertemplate="%{x}: ₹%{y:.2f}<extra></extra>"
+        ))
+        plan_fig.update_layout(
+            title="Trade Plan (Stop Loss / Entry / Take Profit)",
+            yaxis_title="Price (₹)",
+            xaxis_title="Levels",
+            height=320,
+            hovermode="x unified",
+            margin=dict(l=40, r=20, t=60, b=40)
+        )
+        st.plotly_chart(plan_fig, width='stretch')
+
         st.divider()
-        
+
         st.divider()
         
         # Model metrics (only show selected models)

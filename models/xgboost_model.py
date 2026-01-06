@@ -26,8 +26,7 @@ class XGBoostModel:
             reg_alpha=1.0,  # Increased L1 regularization
             reg_lambda=3.0,  # Increased L2 regularization
             objective='reg:squarederror',
-            eval_metric='rmse',
-            early_stopping_rounds=20  # Early stopping to prevent overfitting
+            eval_metric='rmse'
         )
         self.scaler = StandardScaler()
         self.is_trained = False
